@@ -167,6 +167,30 @@ def load_mo(_mf, _file, _filetype='fchk'):
     elif _filetype == 'com': raise NotImplementedError('TODO: load_mo for *.com')
     elif _filetype == 'inp': raise NotImplementedError('TODO: load_mo for *.inp')
     else: logger.error(_mf, F'The {_filetype} type doesn\'t exist')
+def load_ci(_datfile):
+    """TODO: Docstring for read_dat.
+    :datfile: TODO
+    :returns: TODO
+    
+    """
+    fin = open(_datfile)
+    
+    pairs = []
+    for l in fin.readlines():
+        if ("CICOEF" in l) & ("$END" not in l):
+            a = l.rstrip()
+            a = a.split(" ")
+            pairs.append(float(a[-2].rstrip(",")))
+            pairs.append(float(a[-1]))
+        elif ("CICOEF" in l) & ("$END" in l):
+            a = l.rstrip()
+            a = a.split(" ")
+            pairs.append(float(a[-3].rstrip(",")))
+            pairs.append(float(a[-2]))
+            break
+    
+    fin.close()
+    return pairs
 
 def init_by_auto():
     pass
@@ -846,7 +870,7 @@ class GVB(lib.StreamObject):
         
         np0,np1 = self.nocc-self.np,self.nocc+self.np
         self.mo_coeff = localize(self.mol, self.mo_coeff, np0, np1, self.pop)
-        # dump_mo(self, F'{in_pre2b}_gvb_localize.fchk', reffile)
+        dump_mo(self, F'{in_pre2b}_gvb_localize.fchk', reffile)
         self.pairing(np0, np1, self.weight)
         
         dump_mo(self, F'{in_pre2b}_gvb_init.fchk', reffile)
@@ -1240,8 +1264,7 @@ class GVB(lib.StreamObject):
         dump.run(F'cp {initfile} {gvbfchk}')
         dump.run(F'dat2fchk {datfile} {gvbfchk} -gvb {self.np}')
         load_mo(self, gvbfchk)
-        from bcpt2.read_pair import read_dat
-        cil = read_dat(datfile)
+        cil = load_ci(datfile)
         for i in range(self.np): self.ci[self.nco+i] = cil[2*i:2*(i+1)]
         logger.note(self, 'GVB CI:')
         for P in range(self.nco,self.nocc): logger.note(self, F'{self.pair[P,0]+1:2d}({self.ci[P,0]:6f}) <-> {self.pair[P,1]+1:2d}({self.ci[P,1]:6f})')
@@ -1267,7 +1290,7 @@ class GVB(lib.StreamObject):
         for i in range(self.nocc-self.npr,self.nocc):
             logger.note(self, F'{self.pair[i,0]+1:2d}({self.ci[i,0]:6f}) <-> {self.pair[i,1]+1:2d}({self.ci[i,1]:6f})')
         logger.note(self, F'e_ele = {self.e_ele:10f}, e_tot = {self.e_tot:10f}')
-
+        
         self.opt_ci()
         self.e_tot = self.e_ele + self.e_nuc
         for i in range(self.nocc-self.npr,self.nocc):
